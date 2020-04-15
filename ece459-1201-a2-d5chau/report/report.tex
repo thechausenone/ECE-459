@@ -1,0 +1,257 @@
+\documentclass[12pt,reqno]{article}
+\usepackage[english]{babel}
+\usepackage{url}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\graphicspath{{figs/}}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{vmargin}
+\usepackage{appendix}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subfig}
+\usepackage{bm}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage[normalem]{ulem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,  
+    urlcolor=blue,
+}
+
+\newcommand{\stkout}[1]{\ifmmode\text{\sout{\ensuremath{#1}}}\else\sout{#1}\fi}
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+\setmarginsrb{3 cm}{2.5 cm}{3 cm}{2.5 cm}{1 cm}{1.5 cm}{1 cm}{1.5 cm}
+
+\newcounter{eqn}
+\renewcommand*{\theeqn}{\alph{eqn})}
+\newcommand{\numtwo}{\refstepcounter{eqn}\text{\theeqn}\;}
+
+\makeatletter
+\newcommand{\putindeepbox}[2][0.7\baselineskip]{{%
+    \setbox0=\hbox{#2}%
+    \setbox0=\vbox{\noindent\hsize=\wd0\unhbox0}
+    \@tempdima=\dp0
+    \advance\@tempdima by \ht0
+    \advance\@tempdima by -#1\relax
+    \dp0=\@tempdima
+    \ht0=#1\relax
+    \box0
+}}
+\makeatother
+
+\lstset{language=Python,%
+    %basicstyle=\color{red},
+    breaklines=true,%
+    morekeywords={matlab2tikz},
+    keywordstyle=\color{blue},%
+    morekeywords=[2]{1}, keywordstyle=[2]{\color{black}},
+    identifierstyle=\color{black},%
+    stringstyle=\color{mylilas},
+    commentstyle=\color{mygreen},%
+    showstringspaces=false,%without this there will be a symbol in the places where there is a space
+    numbers=left,%
+    numberstyle={\tiny \color{black}},% size of the numbers
+    numbersep=9pt, % this defines how far the numbers are from the text
+    emph=[1]{for,end,break},emphstyle=[1]\color{red}, %some words to emphasise
+    %emph=[2]{word1,word2}, emphstyle=[2]{style},    
+}
+
+\title{ECE 459 - Assignment 2} % Title
+
+\author{}
+\date{\today} % Date
+
+\makeatletter
+\let\thetitle\@title
+\let\theauthor\@author
+\let\thedate\@date
+\makeatother
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\theauthor}
+\lhead{\thetitle}
+\cfoot{\thepage}
+
+\begin{document}
+
+% custom commands 
+\newcommand{\units}[1]{$\hspace{0.25em}\mathrm{[#1]}$}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{titlepage}
+	\centering
+    \vspace*{-1 cm}
+    \includegraphics[scale = 0.5]{titlepage/UW.jpg}\\	% University Logo
+	\rule{\linewidth}{0.2 mm} \\[0.4 cm]
+	{ \huge \bfseries \thetitle}\\
+	\rule{\linewidth}{0.2 mm} \\[1.5 cm]
+	
+	\begin{minipage}[t]{0.4\textwidth}
+		\begin{flushleft} \large
+			\emph{Author:}\\
+            David Chau \\
+			\end{flushleft}
+			\end{minipage}~
+			\begin{minipage}[t]{0.4\textwidth}
+			\begin{flushright} \large
+			\emph{Student Number:} \\
+            20623345\\
+		\end{flushright}
+	\end{minipage}\\[2 cm]
+	Date: 
+	{\large February 12, 2020}\\[2 cm]
+	\vfill
+\end{titlepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+{\bf I verify I ran all benchmarks on ecetesla0 with 14 physical cores and
+{\tt OMP\_NUM\_THREADS} set to 14 (I double checked with
+{\tt echo \$OMP\_NUM\_THREADS})}
+
+\section*{Automatic Parallelization}
+
+The task in this section was to make the necessary changes to a raytrace program in order for Oracle's Solaris Studio to parallelize the program. The parallelizations in this case affected the profitable loop, which is the outer loop of 60000 iterations. 
+
+The main change was converting the function calls within the profitable loop into \texttt{\#define} macros. As function calls can have arbitrary side effects, compilers will typically avoid parallelizing loops with function calls. On the other hand, macros are just fragments of code that have been given a name. Whenever the name is used, it is replaced inline by the contents of the macro at compile time. As such, the behaviour intended by the functions can be preserved without actually using functions. This was verified by writing basic test cases in \texttt{run\_tests()}, as well as by comparing the image output from the sequential and parallel versions of the raytrace program. By making this change, the profitable loop was then parallelized by the compiler. 
+
+Since macros can be difficult to understand and have many nuances, these changes also adversely impact the maintainability of the code. This is especially true if any complex logic is required to be added to the existing macros, as they are by nature not as easy to work with when compared to functions in this respect.
+
+Unrelated to enabling the compiler to parallelize, an additional change of writing to \texttt{/tmp} was done based on advice given by the instructor. This was at the suspicion that the \texttt{/home} directory was being limited by NFS.
+
+Making these changes resulted in a noticeable speedup as indicated by Table \ref{tab:raytrace-results}. As a baseline, the unoptimized sequential version took on average 7.167s to execute, while the optimized sequential version took 3.853s. Through automatic parallelization, the raytrace program was able to run in 0.4743s. This is roughly 15.11x and 8.12x faster than the unoptimized and optimized versions, respectively. 
+
+\begin{table}[H]
+    \centering
+    \caption{Benchmark results for different raytrace executions}
+    \label{tab:raytrace-results}
+    \begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Test Case}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    Unoptimized & 7.167 & 0.710 & 6.142 & 7.752 \\ \hline
+    Optimized & 3.853 & 0.208 & 3.496 & 4.093 \\ \hline
+    Parallelized & 0.4743 & 0.0155 & 0.4480 & 0.4992 \\ \hline
+    \end{tabular}
+\end{table}
+
+\pagebreak
+
+% Justify each change you make and explain why:
+% • the existing code does not parallelize;
+% • your changes improve parallelization and preserve the behaviour of the sequential version
+% • your changes adversely impact maintainability
+% Run your benchmark again and calculate your speedup. Speculate about why you got your speedup.
+
+\section*{Using OpenMP Tasks}
+The goal of this section was to parallelize the \textit{n}-queens problem using OpenMP tasks. Specifically, the following OpenMP directives were included:
+\begin{itemize}
+    \item \texttt{\#pragma omp parallel} \\
+    This was used to indicate that parallel execution was starting.
+    \item \texttt{\#pragma omp single} \\
+    This was used to limit the number of threads calling the initial \texttt{nqueens} to just one thread.
+    \item \texttt{\#pragma omp task firstprivate(j)} \\ 
+    This was used to split off subsequent calls to \texttt{nqueens} as tasks. In order to avoid overloading the system with tasks and to ensure a speedup, this was limited to the first level of recursion using the \texttt{RECURSION\_DEPTH} variable. Because of this, further calls to \texttt{nqueens} after the first level of recursion will result in sequential execution. Additionally, it should be noted that each task operates on their own copy of \texttt{new\_config} and \texttt{j} in order to avoid race conditions.
+    \item \texttt{\#pragma omp atomic} \\
+    This was used to update the \texttt{count} variable in a thread-safe manner once a solution was found. 
+\end{itemize}
+
+Given that at the first level of recursion, there will be a guaranteed \texttt{n} calls to \texttt{nqueens}, making these changes enabled these \texttt{n} calls to be run in parallel. As noted prior, subsequent calls to \texttt{nqueens} will be run in serial in their respective threads. As a result, a performance increase of 5.93x for \texttt{n=13} and 7.07x for \texttt{n=14} was achieved. This can be seen in Table \ref{tab:openmp-tasks-results-1}.
+
+% Modify the code to use OpenMP tasks. Benchmark your modified program and calculate the speedup. Explain
+% why your changes improved performance. Write a couple of sentences explaining how you could further improve
+% performance.
+
+\begin{table}[H]
+    \centering
+    \caption{Benchmark results for different \textit{n}-queens executions}
+    \label{tab:openmp-tasks-results-1}
+    \begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Test Case}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    Sequential, n=13 & 1.724 & 0.064 & 1.675 & 1.895 \\ \hline
+    Sequential, n=14 & 10.502 & 0.064 & 10.406 & 10.627 \\ \hline
+    Parallelized, n=13 & 0.2907 & 0.0103 & 0.2787 & 0.3135 \\ \hline
+    Parallelized, n=14 & 1.485 & 0.047 & 1.435 & 1.585 \\ \hline
+    \end{tabular}
+\end{table}
+
+One further optimization was made in order to improve performance, which affected cases where \texttt{RECURSIVE\_DEPTH} $\geq$ 1 (i.e., sequentially executed portion). This change was moving the \texttt{malloc} and \texttt{free} of \texttt{new\_config} out of the sequentially executed for-loop, reducing the number of allocations and deallocations per call to \texttt{nqueens} from \texttt{j} to 1. This can be done as the index of \texttt{new\_config} will just be overwritten by further iterations. As indicated by Table \ref{tab:openmp-tasks-results-2}, this lead to performance increases of 10.53x for \texttt{n=13} and 13.69x for \texttt{n=14}, when compared to the sequential version.
+
+\begin{table}[H]
+    \centering
+    \caption{Benchmark results for \texttt{malloc} optimized \textit{n}-queens executions}
+    \label{tab:openmp-tasks-results-2}
+    \begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Test Case}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    Optimized, n=13 & 0.1637 & 0.0094 & 0.1496 & 0.1787 \\ \hline
+    Optimized, n=14 & 0.7669 & 0.0195 & 0.7421 & 0.8074 \\ \hline
+    \end{tabular}
+\end{table}
+
+One final thing to note is that the final parallelized program was checked with \texttt{valgrind}. Doing this showed a number of ``possibly lost'' and ``still reachable'' blocks, the exact number of which not varying with input size. Based on this and discussions held on Piazza, it was concluded that this was an issue with OpenMP and not the implemented code. 
+\pagebreak
+
+\section*{Manual Parallelization with OpenMP}
+
+The goal of this section was to manually parallelize a program capable of decoding the secret from a JSON Web Token (JWT). The implementation of the sequential decoder ended up being a back-tracking problem. Because of this, initially a similar methodology to the one used to parallelize the \textit{n}-queens problem was employed. The following OpenMP directives were used:
+
+\begin{itemize}
+    \item \texttt{\#pragma omp parallel}
+    \item \texttt{\#pragma omp single}
+    \item \texttt{\#pragma omp task firstprivate(i)}
+\end{itemize}
+
+These resulted in the runtimes seen in Table \ref{tab:manual-1}. However, this task-based methodology ended up being deemed not as effective, relative to the methodology that will be discussed next. This is potentially attributed to the fact that tasks in this context incur a significant amount of overhead and are not as optimized for these types of computations. 
+
+\begin{table}[H]
+    \centering
+    \caption{Benchmark results for JWT secret decoder executions using task-based methodology}
+    \label{tab:manual-1}
+    \begin{tabular}{|P{3cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Test Case}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    Parallelized, \texttt{JWT\_TOKEN\_4} & 1.090 & 0.278 & 0.795 & 1.668 \\ \hline
+    Parallelized, \texttt{JWT\_TOKEN\_5} & 26.617 & 4.251 & 19.851 & 31.803 \\ \hline
+    Parallelized, \texttt{JWT\_TOKEN\_6} & 508.655 & 63.551 & 463.717 & 553.592 \\ \hline
+    \end{tabular}
+\end{table}
+
+What ended up being used in the final solution is a for-based methodology, using the following OpenMP directive:
+\begin{itemize}
+    \item \texttt{\#pragma omp parallel for private(i)}
+\end{itemize}
+
+In this case, the iterations of the loop will be distributed among the given team of threads, without any overhead from task creation. Each thread will therefore be solving different branches of the back-tracking problem at the same time, effectively parallelizing the given program. The performance of this methodology is shown in Table \ref{tab:manual}. Overall it is evident that runtimes have improved relative to the task-based methodology. Additionally, the decoder on \texttt{JWT\_TOKEN\_4} and \texttt{JWT\_TOKEN\_5} runs 12.57x and 18.84 faster than the sequential version, respectively. Additionally, \texttt{JWT\_TOKEN\_6} is now able to run in roughly 257 seconds, instead of running indefinitely in the sequential case.
+
+\begin{table}[H]
+    \centering
+    \caption{Benchmark results for JWT secret decoder executions}
+    \label{tab:manual}
+    \begin{tabular}{|P{3cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Test Case}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    Sequential, \texttt{JWT\_TOKEN\_4} & 2.853 & 0.269 & 2.615 & 3.400 \\ \hline
+    Sequential, \texttt{JWT\_TOKEN\_5} & 86.178 & 2.353 & 83.957 & 90.953 \\ \hline
+    Sequential, \texttt{JWT\_TOKEN\_6} & indefinite & N/A & N/A & N/A \\ \hline
+    Parallelized, \texttt{JWT\_TOKEN\_4} & 0.2269 & 0.0781 & 0.1558 & 0.3759 \\ \hline
+    Parallelized, \texttt{JWT\_TOKEN\_5} & 4.574 & 1.098 & 2.705 & 5.589 \\ \hline
+    Parallelized, \texttt{JWT\_TOKEN\_6} & 257.061 & 63.625 & 143.784 & 348.999 \\ \hline
+    \end{tabular}
+\end{table}
+
+Similar to what was done for Question 2, the final parallelized program was checked with \texttt{valgrind}. Doing this showed a number of ``possibly lost'' and ``still reachable'' blocks, the exact number of which not varying with input size. Based on this and discussions held on Piazza, it was concluded that this was an issue with OpenMP and not the implemented code. 
+
+\clearpage
+\pagebreak
+
+\end{document}

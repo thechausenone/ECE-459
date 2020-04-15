@@ -1,0 +1,271 @@
+\documentclass[12pt,reqno]{article}
+\usepackage[english]{babel}
+\usepackage{url}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\graphicspath{{figs/}}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{vmargin}
+\usepackage{appendix}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subfig}
+\usepackage{bm}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage[normalem]{ulem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,  
+    urlcolor=blue,
+}
+
+\newcommand{\stkout}[1]{\ifmmode\text{\sout{\ensuremath{#1}}}\else\sout{#1}\fi}
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+\setmarginsrb{3 cm}{2.5 cm}{3 cm}{2.5 cm}{1 cm}{1.5 cm}{1 cm}{1.5 cm}
+
+\newcounter{eqn}
+\renewcommand*{\theeqn}{\alph{eqn})}
+\newcommand{\numtwo}{\refstepcounter{eqn}\text{\theeqn}\;}
+
+\makeatletter
+\newcommand{\putindeepbox}[2][0.7\baselineskip]{{%
+    \setbox0=\hbox{#2}%
+    \setbox0=\vbox{\noindent\hsize=\wd0\unhbox0}
+    \@tempdima=\dp0
+    \advance\@tempdima by \ht0
+    \advance\@tempdima by -#1\relax
+    \dp0=\@tempdima
+    \ht0=#1\relax
+    \box0
+}}
+\makeatother
+
+\lstset{language=Python,%
+    %basicstyle=\color{red},
+    breaklines=true,%
+    morekeywords={matlab2tikz},
+    keywordstyle=\color{blue},%
+    morekeywords=[2]{1}, keywordstyle=[2]{\color{black}},
+    identifierstyle=\color{black},%
+    stringstyle=\color{mylilas},
+    commentstyle=\color{mygreen},%
+    showstringspaces=false,%without this there will be a symbol in the places where there is a space
+    numbers=left,%
+    numberstyle={\tiny \color{black}},% size of the numbers
+    numbersep=9pt, % this defines how far the numbers are from the text
+    emph=[1]{for,end,break},emphstyle=[1]\color{red}, %some words to emphasise
+    %emph=[2]{word1,word2}, emphstyle=[2]{style},    
+}
+
+\title{ECE 459 - Assignment 1} % Title
+
+\author{}
+\date{\today} % Date
+
+\makeatletter
+\let\thetitle\@title
+\let\theauthor\@author
+\let\thedate\@date
+\makeatother
+
+\pagestyle{fancy}
+\fancyhf{}
+\rhead{\theauthor}
+\lhead{\thetitle}
+\cfoot{\thepage}
+
+\begin{document}
+
+% custom commands 
+\newcommand{\units}[1]{$\hspace{0.25em}\mathrm{[#1]}$}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\begin{titlepage}
+	\centering
+    \vspace*{-1 cm}
+    \includegraphics[scale = 0.5]{titlepage/UW.jpg}\\	% University Logo
+	\rule{\linewidth}{0.2 mm} \\[0.4 cm]
+	{ \huge \bfseries \thetitle}\\
+	\rule{\linewidth}{0.2 mm} \\[1.5 cm]
+	
+	\begin{minipage}[t]{0.4\textwidth}
+		\begin{flushleft} \large
+			\emph{Author:}\\
+            David Chau \\
+			\end{flushleft}
+			\end{minipage}~
+			\begin{minipage}[t]{0.4\textwidth}
+			\begin{flushright} \large
+			\emph{Student Number:} \\
+            20623345\\
+		\end{flushright}
+	\end{minipage}\\[2 cm]
+	Date: 
+	{\large January 27, 2020}\\[2 cm]
+	\vfill
+\end{titlepage}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Parallelization}
+The task in this section is to parallelize a program responsible for solving a given set of Sudoku puzzles and then outputting them to file. There are three strategies available in order to accomplish this task, which will be discussed in the following sections. The runtime of the original program given various input sizes is shown below in Table \ref{tab:sudoku-base}.
+
+\begin{table}[H]
+\centering
+\caption{Performance measurements for \textit{sudoku.c}}
+\label{tab:sudoku-base}
+\begin{tabular}{|P{2.5cm}|P{2.5cm}|}
+\hline 
+\textbf{Input size}& \textbf{Time (s)}\\ \hline 
+1 & 0.024\\ \hline
+10 & 0.24\\ \hline
+50 & 0.943\\ \hline
+100 & 0.818\\ \hline
+500 &  8.01\\ \hline
+1000 & 10.264\\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Strategy One}
+Strategy one is based around solving one puzzle per thread. To do this, each thread is responsible for processing a puzzle from start to finish. This includes: reading the puzzle in from file, solving the puzzle, and finally writing the solution out to file. 
+
+Based on the results from Table \ref{tab:sudoku_threads}, some minor conclusions can be made. First of all, the overhead from this implementation is insignificant. This can be deduced from the fact that the run-times at lower input sizes are equal to, if not better, than the one presented in Table \ref{tab:sudoku-base}. Next, it can also be said that this strategy was able to do its job of improving the overall performance, which is something that is increasingly important at larger input sizes. This is indicated by the lower runtimes relative to the base \texttt{sudoku} program at higher input. For example, with 32 threads and an input size of 1000, \texttt{sudoku\_threads} was able to run in nearly half the time. 
+
+In comparison to the other strategies, this one is the easiest in terms of implementation. It uses the same run function throughout all the threads, which reduces the amount of custom logic and thread management required. Additionally, it runs faster than strategy two and three on the last test case (i.e., 32 threads and input size of 1000). Based on this information, it can be said that this strategy was worth the speed up.
+
+\begin{table}[H]
+\centering
+\caption{Performance measurements for \textit{sudoku\_threads.c}}
+\label{tab:sudoku_threads}
+\begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+\hline
+& \multicolumn{4}{|c|}{\textbf{Number of Threads}} \\ \hline 
+\textbf{Input size}& 3 & 4 & 16 & 32 \\ \hline 
+1 & 0.021 & 0.017&0.169 &0.018 \\ \hline
+10 & 0.189& 0.214& 0.161& 0.157\\ \hline
+50 & 0.609& 0.678& 0.491& 0.514\\ \hline
+100 &0.702 & 0.62& 0.39& 0.336\\ \hline
+500 & 7.047& 7.385& 5.811&5.579 \\ \hline
+1000 & 8.684 & 8.237& 6.001&5.039\\ \hline
+\end{tabular}
+\end{table}
+
+\subsection{Strategy Two}
+Strategy two is based around assigning threads particular jobs. These jobs consist of: reading puzzles in, solving puzzles, and outputting puzzles. As such, multiple threads will be involved in the process of solving a given puzzle. The allocation of jobs to threads was done such that there was only ever one thread reading and one thread writing. The rest of the available threads perform the solving job. This allocation was determined by profiling the base \texttt{sudoku} program to see which parts of the code were taking the longest to run. It turned out that more than 99\% of the time was spent solving the puzzle, with the leftover time spent reading, writing, and performing other miscellaneous operations. To note, the queue data structure used in strategy two was provided by \href{https://github.com/raideus/c-data-structures}{https://github.com/raideus/c-data-structures} and then modified to suit the requirements of strategy two.
+
+Based on the results from Table \ref{tab:sudoku_workers}, some conclusions can be drawn. Similarly to strategy one, there is little overhead based on the runtimes at lower input sizes. Additionally, there is a noticeable performance increase when compared to the base \texttt{sudoku} program. For example, at 32 threads and an input size of 1000, strategy two was able to run in 5.993 seconds, relative to the 10.264 seconds of the base program.
+
+\begin{table}[H]
+    \centering
+    \caption{Performance measurements for \textit{sudoku\_workers.c}}
+    \label{tab:sudoku_workers}
+    \begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    & \multicolumn{4}{|c|}{\textbf{Number of Threads}} \\ \hline 
+    \textbf{Input size}& 3 & 4 & 16 & 32 \\ \hline 
+    1 & 0.036 & 0.012& 0.022&0.019 \\ \hline
+    10 & 0.196& 0.185& 0.201&0.218 \\ \hline
+    50 & 1.152& 0.638& 0.518&0.448 \\ \hline
+    100 & 0.899& 0.895&0.429 &0.369 \\ \hline
+    500 & 8.4& 7.644&5.898 &5.209 \\ \hline
+    1000 & 10.679& 9.527& 7.451&5.993 \\ \hline
+    \end{tabular}
+    \end{table}
+    
+In comparison to the other strategies, this strategy was the second easiest to implement. The speedup increase was worth it for the slight increase in complexity relative to strategy one. In addition, by splitting up the work to be done, it will make it easier to maintain in the future (i.e., separation of responsibility). Additionally, relative to strategy one, the runtime for the last test case is slightly worse. This can be attributed to the fact that the read and write jobs are lightweight. Since strategy two allocates two of its total threads to perform this work, it will be missing out on the parallelization of the heavier work (i.e., solving the puzzles). On the other hand, strategy one will be able to allow all of its threads to perform the work of solving. Compared to strategy three, this strategy is faster on the last test case, however slower across the board for the rest of the test cases. 
+
+\subsection{Strategy Three}
+Strategy three is based on having multiple threads contribute to solving one puzzle. Essentially, the \texttt{solve()} function is parallelized. To do this, the following process was done: 
+
+\begin{enumerate}
+    \item Create threads that will do nothing until queue with modified puzzles is populated
+    \item Given a puzzle, find first two empty spaces
+    \item Generate modified puzzles with the first two empty spaces filled in with valid values
+    \item Add modified puzzles to a queue
+    \item Let main wait on threads to find a solution. They do this by each taking a modified puzzle from the queue and running \texttt{solve()}
+    \item Once a thread finds a solution, write that solution to file and let mains and other threads know that a solution has been found.
+    \item Repeat from step 2 until no more puzzles are available
+\end{enumerate}
+
+To note, the queue data structure used in strategy three was provided by the same source as the one used in strategy two. 
+
+Based on the results from Table \ref{tab:sudoku_multi}, some conclusions can be made. The first thing being that this implementation seems to have better performance for the wide majority of test cases, relative to strategies one and two and also the base \texttt{sudoku} program. When compared to the base program, this is reasonable as the point of this strategy was to increase performance. With respect to the other two strategies, this can be attributed to the fact that there is minimal destroying and recreating of threads in this implementation. In fact, the same children threads are used throughout the runtime, which differs from the other two strategies where the majority of threads were constantly being created and destroyed, resulting in noticeable overhead.
+
+
+A notable exception in performance is the last test case (i.e., input size 1000 and 32 threads), which ends up being slower when compared to the other two strategies and the base program (sometimes even taking upwards of 5 minutes). This exception can be tied with the fact that performance seems to degrade when going from 16 threads to 32 threads a majority of the time. A possible justification for this lies within the implementation. Currently, threads are spawned all at once at the beginning of program execution and immediately begin running. There is no mechanism blocking these threads from continually wasting CPU cycles checking if there are puzzles to solve. Similarly, when main is waiting on the children threads to find a solution, it is also continually wasting CPU cycles checking a condition. As more threads are introduced and continually idling, especially at higher input sizes, this degradation in performance becomes more noticeable. Another potential justification could lie with how this methodology is inherently not good (i.e., doing a lot of work for little gain). The main reason why performance decreases are not seen across the board is, as mentioned before, due to the optimization of not destroying threads all the time.
+
+\begin{table}[H]
+\centering
+\caption{Performance measurements for \textit{sudoku\_multi.c}}
+\label{tab:sudoku_multi}
+\begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+\hline
+& \multicolumn{4}{|c|}{\textbf{Number of Threads}} \\ \hline 
+\textbf{Input size}& 3 & 4 & 16 & 32 \\ \hline 
+1 & 0.012&0.017 &0.108 &0.011 \\ \hline
+10 & 0.139& 0.083& 0.126&0.192\\ \hline
+50 & 0.273& 0.363&0.623 &0.357\\ \hline
+100 & 0.297& 0.199& 0.238&0.308 \\ \hline
+500 & 4.746 & 4.561 & 6.897 &9.584\\ \hline
+1000 &6.052 &5.259 & 5.467 & 11.523 \\ \hline
+\end{tabular}
+\end{table}
+
+In comparison to the other three strategies, this strategy was the most complicated to implement. The main reason being that in order to get a decent runtime magnitude and for the runtime to not increase as the number of threads increased, threads needed to be kept alive instead of continually recreated. The logic required to do this, coming from strategy one and two, was noticeably harder to accomplish. It is hard to draw definitive conclusions with regards to performance for this strategy as the other two strategies did not implement the same ``keep threads alive'' mechanism, which would have greatly improved their speed. In the end though, given the performance metrics on the last test case and even with the optimizations, it is hard to say if this strategy was worth it.
+
+\section{Non-blocking I/O}
+The task in this section is to modify the \texttt{verifier} tool so that it uses non-blocking I/O. This involves having multiple concurrent connections to servers open. The runtimes for the base \texttt{verifier} can be seen below in Table \ref{tab:verifier_base}.  
+
+\begin{table}[H]
+\centering
+\caption{Performance measurements for \textit{verifier.c}}
+\label{tab:verifier_base}
+\begin{tabular}{|P{2.5cm}|P{2.5cm}|}
+\hline 
+\textbf{Input size}& \textbf{Time (s)}\\ \hline 
+1 & 0.068\\ \hline
+10 & 0.0572\\ \hline
+50 & 2.811\\ \hline
+100 & 5.594\\ \hline
+500 & 27.986\\ \hline
+1000 & 55.984\\ \hline
+\end{tabular}
+\end{table}
+
+% Again, benchmark your work and report results as compared to the baseline (unmodified) program, for
+% the number of concurrent connections N ∈ {3, 4, 16, 32}. Is the amount of the performance increase as expected?
+% Why or why not?
+
+By implementing the solution presented in the assignment manual, the resultant program \texttt{verifier\_multi} was able to produce the results seen in Table \ref{tab:verifier_multi}. 
+
+\begin{table}[H]
+\centering
+\caption{Performance measurements for \textit{verifier\_multi.c}}
+\label{tab:verifier_multi}
+\begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+\hline
+& \multicolumn{4}{|c|}{\textbf{Number of Connections}} \\ \hline 
+\textbf{Input size}& 3 & 4 & 16 & 32 \\ \hline 
+1 & 0.064 & 0.063 & 0.058 & 0.059 \\ \hline
+10 & 0.217 & 0.163 & 0.067 & 0.068 \\ \hline
+50 & 0.887 & 0.680 & 0.223 & 0.136 \\ \hline
+100 & 1.752 & 1.3 & 0.394 & 0.228 \\ \hline
+500 & 8.59 & 6.414 & 1.708 & 0.89\\ \hline
+1000 & 17.102 & 12.858 & 3.34 & 1.759\\ \hline
+\end{tabular}
+\end{table}
+
+As expected, by concurrently sending POST requests using the \texttt{curl\_multi} interface, there is a clear reduction in runtime as the number of threads increases. This difference becomes even more evident at larger input sizes. For example, at an input size of 1000 and 32 connections, the runtime goes from 55.984 seconds to 1.759 seconds. This trend is observed consistently for other combinations of input sizes and connections. Additionally, it should be stated that this makes sense as the bulk of the time in sending a POST request is waiting for a response from the server. Since this portion is essentially happening concurrently for multiple requests, a large increase in performance can be expected.
+
+\clearpage
+\pagebreak
+
+\end{document}
+

@@ -1,0 +1,115 @@
+\documentclass[12pt,reqno]{article}
+\usepackage[english]{babel}
+\usepackage{url}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{graphicx}
+\graphicspath{{figs/}}
+\usepackage{parskip}
+\usepackage{fancyhdr}
+\usepackage{vmargin}
+\usepackage{appendix}
+\usepackage{float}
+\usepackage{booktabs}
+\usepackage{caption}
+\usepackage{subfig}
+\usepackage{bm}
+\usepackage{listings}
+\usepackage{array}
+\usepackage{hyperref}
+\usepackage[normalem]{ulem}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,  
+    urlcolor=blue,
+}
+
+\newcommand{\stkout}[1]{\ifmmode\text{\sout{\ensuremath{#1}}}\else\sout{#1}\fi}
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+\setmarginsrb{3 cm}{2.5 cm}{3 cm}{2.5 cm}{1 cm}{1.5 cm}{1 cm}{1.5 cm}
+
+\newcounter{eqn}
+\renewcommand*{\theeqn}{\alph{eqn})}
+\newcommand{\numtwo}{\refstepcounter{eqn}\text{\theeqn}\;}
+
+\title{\vspace{-4cm}ECE 459: Programming for Performance\\Assignment 3\vspace{-2ex}}
+\author{David Chau (20623345)\vspace{-2ex}}
+\date{\vspace{-2ex}March 10, 2019}
+
+\makeatletter
+\let\thetitle\@title
+\let\theauthor\@author
+\let\thedate\@date
+\makeatother
+
+\pagestyle{plain}
+\fancyhf{}
+\rhead{\theauthor}
+\lhead{\thetitle}
+\cfoot{\thepage}
+% Code listing style
+\lstset{frame=single}
+% Custom commands 
+\newcommand{\units}[1]{$\hspace{0.25em}\mathrm{[#1]}$}
+
+\begin{document}
+\maketitle
+
+
+\section*{Part 1: Crack it to me}
+
+The task in this section was to parallelize the \texttt{jwtcracker} code from Assignment 2 using OpenCL instead of OpenMP. This was done by first taking the recursive-based code from Assignment 2, converting it to use an iterative-based approach, and finally implementing it in the \texttt{bruteForceJWT} kernel. This code allows all combinations of a given set of characters to be computed and checked to see whether it is the correct secret or not. Next, a parallelization strategy was decided upon. Specifically, \texttt{globalSize} was set to be a 3D range with equal dimensions of \texttt{gAlphabet.length()}. This enables each work item processed by \texttt{bruteForceJWT} to be allocated 3 of \texttt{gMaxSecretLen} characters as a starting secret, effectively reducing the amount of work a single thread has to perform and distributing it among many threads.
+
+The results of testing using \texttt{hyperfine} are shown below. It can be seen that with this approach, performance has decreased across the three given test cases. This may indicate that the overhead of parallelizing using OpenCL is more costly than that of OpenMP. However, it should be noted that the results for OpenCL were computed during a period of time where server load was high, so the values shown here may not be indicative of the true performance. Regardless, OpenCL proves to be a viable method for parallelization and also shows potential to surpass the OpenMP implementation in terms of speed given the correct optimizations.
+
+\begin{table}[H]
+    \centering
+    \caption{Results for different parallelized \texttt{jwtcracker} executions on \texttt{ecetesla0}}
+    \label{tab:jwt-results}
+    \begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Description}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    OpenMP, \texttt{JWT\_TOKEN\_4} & 0.2269 & 0.0781 & 0.1558 & 0.3759 \\ \hline
+    OpenMP, \texttt{JWT\_TOKEN\_5} & 4.574 & 1.098 & 2.705 & 5.589 \\ \hline
+    OpenMP, \texttt{JWT\_TOKEN\_6} & 257.061 & 63.625 & 143.784 & 348.999 \\ \hline
+    OpenCL, \texttt{JWT\_TOKEN\_4} & 0.700 & 0.004 & 0.6942 & 0.7063 \\ \hline
+    OpenCL, \texttt{JWT\_TOKEN\_5} & 9.143 & 0.331 & 8.980 & 10.040 \\ \hline
+    OpenCL, \texttt{JWT\_TOKEN\_6} & 377.647 & 73.612 & 276.335 & 463.215 \\ \hline
+    \end{tabular}
+\end{table}
+
+\section*{Part 2: Coulomb's Law Problem}
+The task in this section was to parallelize, using OpenCL, a given program that runs a simulation of Coulomb's Law. Essentially, converting CPU code into GPU code. Following the CPU code, this was done by creating the following three kernels: 
+\begin{itemize}
+    \item \texttt{computeForces}: used to calculate \texttt{k0} or \texttt{k1} for a given particle
+    \item \texttt{computeApproxPositions}: used to calculate \texttt{y1} for a given particle
+    \item \texttt{computeBetterPositionsAndCheckError}: used to calculate \texttt{z1} for a given particle and check if the error for that particle is within the acceptable range
+\end{itemize}
+
+In this case, each kernel must be enqueued and run on all particles before the next kernel can begin. The main reason behind this dependency is that kernels executing later require the output of the kernels preceding it. To note, for a kernel to run on all particles, the \texttt{globalSize} variable was set to be equal to the total number of particles.
+
+The results of testing using \texttt{hyperfine} with arguments of \texttt{h=0.001} and \texttt{e=0.00001} can be seen below in Table \ref{tab:coulombs-results}. Larger test files were created manually by copy and pasting the values from \texttt{s42-50.in}. These files were used primarily to test for performance, whereas \texttt{s42-50.in} was used to test for correctness and performance. It can be seen that for input files of sufficiently large size, \texttt{protons\_ocl} outperforms \texttt{protons\_sin}. In this case, it ran roughly 26x faster on \texttt{big\_10000.in}. In all other cases, it can be seen that the overhead from parallelization lead to \texttt{protons\_ocl} running slower than its sequential counterpart. Interestingly enough, this trend also follows when comparing \texttt{protons\_ocl} to \texttt{protons\_omp}, however in this case the speed up is only about 2.47x.
+
+\begin{table}[H]
+    \centering
+    \caption{Results for different Coulomb's law executions on \texttt{ecetesla0}}
+    \label{tab:coulombs-results}
+    \begin{tabular}{|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|P{2.5cm}|}
+    \hline
+    \textbf{Description}& \textbf{Mean (s)} & \textbf{$\sigma$ (s)} & \textbf{Min (s)} & \textbf{Max (s)}\\ \hline 
+    \texttt{protons\_sin}, \texttt{s42-50.in} & 0.0138 & 0.0021 & 0.0092 & 0.0187 \\ \hline
+    \texttt{protons\_sin}, \texttt{big\_1000.in} & 0.1238 & 0.0025 & 0.1177 & 0.1293 \\ \hline
+    \texttt{protons\_sin}, \texttt{big\_10000.in} & 8.537 & 0.243 & 8.224 & 8.981 \\ \hline
+    \texttt{protons\_omp}, \texttt{s42-50.in} & 0.0119 & 0.0032 & 0.0068 & 0.0288 \\ \hline
+    \texttt{protons\_omp}, \texttt{big\_1000.in} & 0.1302 & 0.0338 & 0.057 & 0.1789 \\ \hline
+    \texttt{protons\_omp}, \texttt{big\_10000.in} & 0.8110 & 0.0647 & 0.6541 & 0.8652 \\ \hline   
+    \texttt{protons\_ocl}, \texttt{s42-50.in} & 0.2166 & 0.0128 & 0.2070 & 0.2572 \\ \hline
+    \texttt{protons\_ocl}, \texttt{big\_1000.in} & 0.2415 & 0.0116 & 0.2277 & 0.2738 \\ \hline
+    \texttt{protons\_ocl}, \texttt{big\_10000.in} & 0.3281 & 0.0058 & 0.3211 & 0.3411 \\ \hline    
+    \end{tabular}
+\end{table}
+
+\clearpage
+\end{document}
+
